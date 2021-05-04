@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <cstdlib>
 
 struct Entry {
   uint64_t idk;
@@ -35,20 +34,57 @@ int main(int argc, char* argv[]) {
 
   try {
     file.open(argv[1], std::ios::binary);
-  } catch (std::ios_base::failure& e) {
+  } catch (...) {
     std::cerr << "Failed to open your SND file\n";
+    return 0;
+  }
+
+  uint32_t uncompLen = 0;
+  size_t strLen = strlen(argv[3]);
+  bool opus = false;
+
+  if (strcmp(argv[3] + strLen - 3, "ogg") == 0 || strcmp(argv[3] + strLen - 4, "opus") == 0 ) {
+    opus = true;
+  } else if (strcmp(argv[3] + strLen - 3, "wem") != 0) {
+    std::cerr << "Unsupported audio format\n";
     return 0;
   }
 
   try {
     source.open(argv[3], std::ios::binary);
-  } catch (std::ios_base::failure& e) {
+  } catch (...) {
+    if (opus) {
+      std::cerr << "Failed to load your modified Opus file\n";
+      return 0;
+    }
     std::cerr << "Failed to load your modified WEM file\n";
     return 0;
   }
 
+  if (opus) {
+    std::string cmd("opusdec.exe ");
+    cmd.append(argv[3]);
+    cmd.append(" temp.wav >nul 2>nul");
+    system(cmd.c_str());
+
+    std::ifstream uncompFile;
+    uncompFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    try {
+      uncompFile.open("temp.wav", std::ifstream::ate | std::ifstream::binary);
+    } catch (...) {
+      std::cerr << "Opus decompression failed\n";
+      return 0;
+    }
+
+    uncompLen = (uint32_t) uncompFile.tellg();
+    uncompLen += 20;
+    uncompFile.close();
+    remove("temp.wav");
+  }
+
   source.seekg(0, std::ios::end);
-  uint32_t sourceSize = source.tellg();
+  uint32_t sourceSize = (uint32_t) source.tellg();
   source.seekg(0, std::ios::beg);
 
   uint32_t infoSize;
@@ -71,18 +107,18 @@ int main(int argc, char* argv[]) {
   return 0;
 
   found:
-  uint32_t lenPos = file.tellg();
+  uint32_t lenPos = (uint32_t) file.tellg();
   lenPos -= 20;
 
   file.seekg(0, std::ios::end);
-  uint32_t newOff = file.tellg();
+  uint32_t newOff = (uint32_t) file.tellg();
   file.close();
 
   std::ofstream ofile(argv[1], std::ios::binary | std::ios::in | std::ios::out);
   ofile.seekp(lenPos, std::ios_base::beg);
   ofile.write(reinterpret_cast<const char*>(&sourceSize), sizeof(sourceSize));
   ofile.write(reinterpret_cast<const char*>(&newOff), sizeof(newOff));
-  ofile.write(reinterpret_cast<const char*>(&sourceSize), sizeof(sourceSize));
+  ofile.write(reinterpret_cast<const char*>(&(opus ? uncompLen : sourceSize)), sizeof(uint32_t));
   ofile.seekp(0, std::ios_base::end);
 
   try {
@@ -94,5 +130,10 @@ int main(int argc, char* argv[]) {
 
   ofile.close();
   source.close();
-  std::cout << "WEM file successfully injected into SND\n";
+
+  if (opus) {
+    std::cout << "Opus file successfully injected into SND\n";
+  } else {
+    std::cout << "WEM file successfully injected into SND\n";
+  }
 }
