@@ -1,6 +1,11 @@
 #include <iostream>
 #include <fstream>
+
+#ifdef _WIN32
 #include <string>
+#else
+#include <cstring>
+#endif
 
 struct Entry {
   uint64_t idk;
@@ -13,7 +18,9 @@ struct Entry {
 
 int main(int argc, char* argv[]) {
   if (argc != 4) {
-    std::cerr << "Invalid arguments\n";
+    std::cout << "SND Inject v1.1 by Fry\n\n";
+    std::cout << "Usage:\n";
+    std::cout << argv[0] << " [path_to_SND_archive] [SFX_ID] [path_to_custom_WEM_file]\n";
     return 0;
   }
 
