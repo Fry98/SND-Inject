@@ -3,8 +3,10 @@
 
 #ifdef _WIN32
 #include <string>
+#define cmd_cstr "opusdec.exe "
 #else
 #include <cstring>
+#define cmd_cstr "wine opusdec.exe "
 #endif
 
 struct Entry {
@@ -69,7 +71,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (opus) {
-    std::string cmd("opusdec.exe ");
+    std::string cmd(cmd_cstr);
     cmd.append(argv[3]);
     cmd.append(" temp.wav >nul 2>nul");
     system(cmd.c_str());
