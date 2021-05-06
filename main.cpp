@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <fstream>
 
@@ -75,9 +76,9 @@ int main(int argc, char* argv[]) {
     size_t cmdLen = 21 + cmdBegLen + strLen;
     char* cmd = new char[cmdLen];
 
-    strcpy_s(cmd, cmdLen, cmdBeg);
-    strcat_s(cmd, cmdLen, argv[3]);
-    strcat_s(cmd, cmdLen, " temp.wav >nul 2>nul");
+    strcpy(cmd, cmdBeg);
+    strcat(cmd, argv[3]);
+    strcat(cmd, " temp.wav >nul 2>nul");
     system(cmd);
 
     std::ifstream uncompFile;
