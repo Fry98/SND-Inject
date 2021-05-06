@@ -2,11 +2,12 @@
 #include <fstream>
 
 #ifdef _WIN32
-#include <string>
-#define cmd_cstr "opusdec.exe "
+  #define cmdBeg "opusdec.exe "
+  #define cmdBegLen 12
 #else
-#include <cstring>
-#define cmd_cstr "wine opusdec.exe "
+  #include <cstring>
+  #define cmdBeg "wine opusdec.exe "
+  #define cmdBegLen 17
 #endif
 
 struct Entry {
@@ -20,9 +21,9 @@ struct Entry {
 
 int main(int argc, char* argv[]) {
   if (argc != 4) {
-    std::cout << "SND Inject v1.1 by Fry\n\n";
-    std::cout << "Usage:\n";
-    std::cout << argv[0] << " [path_to_SND_archive] [SFX_ID] [path_to_custom_WEM_file]\n";
+    std::cerr << "Invalid arguments\n\n";
+    std::cerr << "Usage:\n";
+    std::cerr << argv[0] << " [path_to_SND_archive] [SFX_ID] [path_to_your_audio_file]\n";
     return 0;
   }
 
@@ -71,10 +72,13 @@ int main(int argc, char* argv[]) {
   }
 
   if (opus) {
-    std::string cmd(cmd_cstr);
-    cmd.append(argv[3]);
-    cmd.append(" temp.wav >nul 2>nul");
-    system(cmd.c_str());
+    size_t cmdLen = 21 + cmdBegLen + strLen;
+    char* cmd = new char[cmdLen];
+
+    strcpy_s(cmd, cmdLen, cmdBeg);
+    strcat_s(cmd, cmdLen, argv[3]);
+    strcat_s(cmd, cmdLen, " temp.wav >nul 2>nul");
+    system(cmd);
 
     std::ifstream uncompFile;
     uncompFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
