@@ -1,15 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <fstream>
-
-#ifdef _WIN32
-  #define cmdBeg "opusdec.exe "
-  #define cmdBegLen 12
-#else
-  #include <cstring>
-  #define cmdBeg "wine opusdec.exe "
-  #define cmdBegLen 17
-#endif
+#include <filesystem>
 
 struct Entry {
   uint64_t idk;
@@ -73,19 +65,58 @@ int main(int argc, char* argv[]) {
   }
 
   if (opus) {
-    size_t cmdLen = 21 + cmdBegLen + strLen;
-    char* cmd = new char[cmdLen];
+    size_t i = 0;
+    size_t pathLen = -1;
+    std::string path;
 
-    strcpy(cmd, cmdBeg);
+    while (true) {
+      if (argv[0][i] == '\\') {
+        pathLen = i;
+      } else if (argv[0][i] == NULL) {
+        break;
+      }
+      i++;
+    }
+
+    if (pathLen != -1) {
+      char* pathStr = new char[pathLen + 1];
+      memcpy(pathStr, argv[0], pathLen);
+      pathStr[pathLen] = NULL;
+      path = std::filesystem::absolute(pathStr).u8string();
+      path.append("\\");
+      delete[] pathStr;
+    }
+
+    size_t cmdLen = 41 + strLen + (path.length() * 2);
+    char* cmd = new char[cmdLen];
+    cmd[0] = '"';
+    cmd[1] = '"';
+
+    if (pathLen == -1) {
+      strcpy(cmd + 2, "opusdec.exe\" \"");
+    } else {
+      strcpy(cmd + 2, path.c_str());
+      strcat(cmd, "opusdec.exe\" \"");
+    }
+
     strcat(cmd, argv[3]);
-    strcat(cmd, " temp.wav >nul 2>nul");
+    strcat(cmd, "\" \"");
+
+    if (pathLen != -1) {
+      strcat(cmd, path.c_str());
+    }
+
+    strcat(cmd, "temp.wav\" >nul 2>nul\"");
     system(cmd);
+
+    cmd[cmdLen - 14] = NULL;
+    char* tempPath = cmd + path.length() + strLen + 19;
 
     std::ifstream uncompFile;
     uncompFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
     try {
-      uncompFile.open("temp.wav", std::ifstream::ate | std::ifstream::binary);
+      uncompFile.open(tempPath, std::ifstream::ate | std::ifstream::binary);
     } catch (...) {
       std::cerr << "Opus decompression failed\n";
       return 0;
@@ -94,7 +125,8 @@ int main(int argc, char* argv[]) {
     uncompLen = (uint32_t) uncompFile.tellg();
     uncompLen += 20;
     uncompFile.close();
-    remove("temp.wav");
+    remove(tempPath);
+    delete[] cmd;
   }
 
   source.seekg(0, std::ios::end);
@@ -105,15 +137,15 @@ int main(int argc, char* argv[]) {
   uint32_t headSize;
 
   file.seekg(4, std::ios::beg);
-  file.read(reinterpret_cast<char *>(&infoSize), sizeof(infoSize));
-  file.read(reinterpret_cast<char *>(&headSize), sizeof(headSize));
+  file.read(reinterpret_cast<char*>(&infoSize), sizeof(infoSize));
+  file.read(reinterpret_cast<char*>(&headSize), sizeof(headSize));
 
   infoSize += 4;
   file.seekg(headSize, std::ios::cur);
 
   Entry curEntr;
   while (file.tellg() < infoSize) {
-    file.read(reinterpret_cast<char *>(&curEntr), sizeof(curEntr));
+    file.read(reinterpret_cast<char*>(&curEntr), sizeof(curEntr));
     if (curEntr.id == id) goto found;
   }
 
